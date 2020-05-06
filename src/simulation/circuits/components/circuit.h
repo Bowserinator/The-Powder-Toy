@@ -73,7 +73,7 @@ public:
     void generate();
     void solve(bool allow_recursion = true);
     void update_sim();
-
+    
     void reset_effective_resistances();
     void flag_recalc() { recalc_next_frame = true, solution_computed = false; }
     bool should_recalc() { return recalc_next_frame; }

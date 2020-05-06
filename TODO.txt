@@ -759,7 +759,7 @@ coputeDynamicVoltages polarity check?
 
 floating branch by capacitor makes capcitor not work
 
-retally resistances every second or so?
+- really small resistance - segfault
 
 - better adding method, ie severe lag when molten circuit resolidifies (large circuit)
     - 

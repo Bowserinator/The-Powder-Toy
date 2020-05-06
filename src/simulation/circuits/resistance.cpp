@@ -44,10 +44,6 @@ double get_resistance(ElementType type, Particle *parts, ParticleId i, Simulatio
     if (is_dynamic_resistor(type))
         return 0.0;
 
-    // RSTR stores resistance in pavg0
-    if (type == PT_RSTR)
-        return parts[i].pavg[0];
-
     auto itr = circuit_data.find(type);
     if (itr != circuit_data.end())
         return itr->second.resistance;
@@ -63,6 +59,10 @@ double get_effective_resistance(ElementType type, Particle *parts, ParticleId i,
     switch(type) {
         case PT_SWCH:
             return parts[i].life >= 4 ? circuit_data.at(type).resistance : REALLY_BIG_RESISTANCE;
+
+        // Resistor stores resistance in pavg0
+        case PT_RSTR:
+            return parts[i].pavg[0];
 
         // Quartz
         case PT_QRTZ:

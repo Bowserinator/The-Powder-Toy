@@ -2455,9 +2455,6 @@ void GameView::OnDraw()
 			else if (type == PT_RSPK) {
 				sampleInfo << format_value(sample.particle.pavg[1], "A", 3) << ", ";
 				sampleInfo << format_value(sample.Resistance, "ohm", 3) << ", ";
-
-				// if (sample.particle.ctype != PT_VOLT)
-				// 	sampleInfo << "R = " << sample.particle.dcolour / 100.0f << "e-8 ohms,  ";
 				sampleInfo << format_value(sample.particle.pavg[0], "V", 3) << "   ";
 			}
 

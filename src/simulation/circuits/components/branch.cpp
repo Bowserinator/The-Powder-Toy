@@ -46,6 +46,7 @@ void Branch::set_to_steady_state() {
 }
 
 void Branch::compute_dynamic_resistances(Simulation * sim, Circuit * c) {
+    resistance = base_resistance;
     if (!switches_on(sim)) // Increase effective resistances of switches that are off
         resistance += REALLY_BIG_RESISTANCE * switches.size();
     for (auto id : dynamic_resistors)
