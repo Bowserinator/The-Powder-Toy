@@ -74,7 +74,7 @@ void Element::Element_RSPK() {
 }
 
 static void changeType(ELEMENT_CHANGETYPE_FUNC_ARGS) {
-	if (circuit_map[i]) circuit_map[i]->flag_recalc();
+	if (circuit_map[i]) circuit_map[i]->flag_recalc(true);
 	circuit_map[i] = nullptr;
 }
 

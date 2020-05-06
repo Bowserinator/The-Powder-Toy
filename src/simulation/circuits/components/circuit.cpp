@@ -257,12 +257,20 @@ void Circuit::trim_nodes(const coord_vec &nodes) {
             }
         }
 
+        /* A node in a T-shape like this:
+         * X       The averaging code produces the wrong result and selects
+         * NNXXXX  the right node, which can create a branch with 2 outputs!
+         * X       Since a branch can't have 2 outputs it would create weird behavior */
+        
         /* Large clusters (>5, which is size of star:)
          *  N    Might indicate a mesh of 1px branches, in which case
          * NNN   we only consider directly adjacent counts
          *  N */
 
-        else if (node_cluster.size() > 5) {
+        /* The code to solve both is the same */
+
+        else if ((node_cluster.size() > 5) ||
+                (node_cluster.size() == 2 && (x_all_same || y_all_same))) {
             for (auto p : node_cluster) {
                 int x = p.x, y = p.y;
                 int count = 0;
@@ -598,7 +606,8 @@ void Circuit::add_branches(const coord_vec &skeleton) {
 void Circuit::generate() {
     coord_vec skeleton = floodfill(sim, startx, starty);
     coord_vec nodes;
-
+    circuit_size = skeleton.size();
+    
     process_skeleton(skeleton);
     mark_nodes(skeleton, nodes);
     trim_nodes(nodes);
@@ -617,6 +626,9 @@ void Circuit::generate() {
  * resolving the circuits for diodes / other special components)
  */
 void Circuit::solve(bool allow_recursion) {
+    if (recalc_cooldown_timer > 0)
+        recalc_cooldown_timer--;
+
     size_t size = highest_node_id - CircuitParams::START_NODE_ID + 1;
     if (!connection_map.size())
         return;
@@ -854,6 +866,9 @@ void Circuit::update_sim() {
             sim->parts[b->node2_id].pavg[0] = restrict_double_to_flt(b->V2);
             sim->parts[b->node2_id].pavg[1] = restrict_double_to_flt(b->current);
 
+            if (b->rspk_ids.size() != b->ids.size())
+                std::cout << "Error" << b->node1 << " -> " << b->node2 << "\n";
+
             for (auto id : b->rspk_ids) {
                 x = (int)(0.5f + sim->parts[id].x);
                 y = (int)(0.5f + sim->parts[id].y);
@@ -862,7 +877,7 @@ void Circuit::update_sim() {
                 // Circuit is invalid - just in case somehow the particle
                 // below the RSPK was deleted and the RSPK didn't register
                 if (!r) {
-                    flag_recalc();
+                    flag_recalc(true);
                     continue;
                 }
 
@@ -930,6 +945,16 @@ void Circuit::reset_effective_resistances() {
     }
 }
 
+void Circuit::flag_recalc(bool force) {
+    if (!force && recalc_cooldown_timer > 0)
+        return;
+
+    recalc_next_frame = true;
+    solution_computed = false;
+    recalc_cooldown_timer = circuit_size < COOLDOWN_PARTICLE_THRESHOLD ?
+        COOLDOWN_BELOW_THRESHOLD : COOLDOWN_ABOVE_THRESHOLD;
+}
+
 void Circuit::debug() {
     std::cout << "Circuit connections:\n";
     for (auto itr = connection_map.begin(); itr != connection_map.end(); itr++) {
@@ -961,6 +986,8 @@ void Circuit::reset() {
     solution_computed = false;
     computed_divergence = false;
     highest_node_id = CircuitParams::NOSKELETON;
+    recalc_cooldown_timer = 0;
+    circuit_size = 0;
 }
 
 Circuit::Circuit(int x, int y, Simulation *sim) {
@@ -987,6 +1014,7 @@ Circuit::Circuit(const Circuit &other) {
     contains_dynamic = other.contains_dynamic;
     requires_divergence_checking = other.requires_divergence_checking;
     highest_node_id = other.highest_node_id;
+    circuit_size = other.circuit_size;
 
     for (auto node_id = connection_map.begin(); node_id != connection_map.end(); node_id++) {
         for (size_t i = 0; i < node_id->second.size(); i++) {

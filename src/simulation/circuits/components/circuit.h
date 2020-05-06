@@ -47,6 +47,8 @@ private:
     
     NodeId highest_node_id = 0;
     int startx, starty;
+    int recalc_cooldown_timer = 0;
+    int circuit_size = 0;
 
     // These can contain duplicate node-node id pairs, and follow same order, ie if connection map
     // for node 5 at index 2 is node 3, then the branch at node 5 index 2 is for node 3
@@ -75,7 +77,7 @@ public:
     void update_sim();
     
     void reset_effective_resistances();
-    void flag_recalc() { recalc_next_frame = true, solution_computed = false; }
+    void flag_recalc(bool force=false);
     bool should_recalc() { return recalc_next_frame; }
     void reset();
     void debug();

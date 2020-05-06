@@ -625,7 +625,7 @@ void Simulation::Restore(const Snapshot & snap)
 	CIRCUITS::clear_circuits();
 	for (auto circuit : snap.circuits) {
 		all_circuits.push_back(new Circuit(circuit));
-		all_circuits.back()->flag_recalc();
+		all_circuits.back()->flag_recalc(true);
 	}
 	CIRCUITS::update_all_circuits();
 }

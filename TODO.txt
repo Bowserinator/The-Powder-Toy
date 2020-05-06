@@ -756,17 +756,22 @@ https://en.wikipedia.org/wiki/Iron%E2%80%93hydrogen_resistor
 - ReID() nodes method at end that rids of unused nodes
 
 coputeDynamicVoltages polarity check?
+- make VOLT dynamic too
 
-floating branch by capacitor makes capcitor not work
+VOLT problems:
+- node should not be inside of VOLT
+- node inside of volt for some reason doesn't work
+- try multi output
+
+sometimes invalid rspk id is created??
+- like entire b->rspk_ids is invalid
 
 - really small resistance - segfault
 
-- better adding method, ie severe lag when molten circuit resolidifies (large circuit)
-    - 
 - molten circuits tend to resolidify into large messes of nodes
     - entropy grid somehow and limit max number of nodes in a grid if entropy is high
     - count deviations from a straight line
-    - alternative: rate limit based on size of circuit - large circuit can only refloodfill every so often
+
 
 deal with numer of nodes overflowing
 
