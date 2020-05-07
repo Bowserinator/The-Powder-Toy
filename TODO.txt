@@ -755,13 +755,14 @@ https://en.wikipedia.org/wiki/Iron%E2%80%93hydrogen_resistor
 - Add node method
 - ReID() nodes method at end that rids of unused nodes
 
+check circuit reloading - memory error
+
+volt should not update every frame or circuit also will :(
 
 VOLT problems:
 - node should not be inside of VOLT
 - node inside of volt for some reason doesn't work
 - try multi output
-
-diff previous solution from solve()
 
 sometimes invalid rspk id is created??
 - like entire b->rspk_ids is invalid

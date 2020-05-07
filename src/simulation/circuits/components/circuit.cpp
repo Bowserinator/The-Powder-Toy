@@ -651,6 +651,9 @@ void Circuit::solve(bool allow_recursion) {
         copy->requires_divergence_checking = false;
     }
 
+    // Set true for now, if no change set to false later
+    new_solution_exists = true;
+
     // Additional special case solvers
     std::vector<NodeAndIndex> diode_branches;
     std::vector<NodeAndIndex> numeric_integration;
@@ -743,10 +746,10 @@ void Circuit::solve(bool allow_recursion) {
     }
 
     x = A.colPivHouseholderQr().solve(b);
-
-    // std::cout << x << "\n";
+    
     // std::cout << A << "\n";
     // std::cout << b << "\n";
+    // std::cout << x << "\n";
     // std::cout << "\n\n";
 
     // Diode branches may involve re-solving if diode blocks current or voltage drop is insufficent
@@ -802,6 +805,20 @@ void Circuit::solve(bool allow_recursion) {
         double current_of_adjacent = 0.0;
         int node1_of_adjacent = 1;
 
+        // Check if result is the same
+        bool solution_is_unchanged = (size_t)x.size() == prev_solution.size();
+        if (solution_is_unchanged)
+            for (size_t i = 0; i < prev_solution.size(); i++)
+                if (prev_solution[i] != x[i])
+                    solution_is_unchanged = false;
+        if (solution_is_unchanged)
+            new_solution_exists = false;
+        else {
+            prev_solution.clear();
+            for (size_t i = 0; i < size; i++)
+                prev_solution.push_back(x[i]);
+        }
+
         for (auto node_id = connection_map.begin(); node_id != connection_map.end(); node_id++) {
             // Normal branches
             non_ohmian_branches.clear();
@@ -841,6 +858,7 @@ void Circuit::solve(bool allow_recursion) {
             b1->SS_voltage = b2->V2 - b2->V1;
             b1->SS_current = b2->current;
         }
+        new_solution_exists = true;
     }
     computed_divergence = true;
     solution_computed = true;
@@ -854,6 +872,11 @@ void Circuit::update_sim() {
                 continue;
 
             Branch *b = branch_map[node_id->first][i];
+
+            // Check if we can skip
+            if (b->obeys_ohms_law() && !new_solution_exists)
+                continue;
+
             ElementType prev_type = -1;
             int x = (int)(0.5f + sim->parts[b->node1_id].x),
                 y = (int)(0.5f + sim->parts[b->node1_id].y),
@@ -949,6 +972,7 @@ void Circuit::flag_recalc(bool force) {
     if (!force && recalc_cooldown_timer > 0)
         return;
 
+    new_solution_exists = true;
     recalc_next_frame = true;
     solution_computed = false;
     recalc_cooldown_timer = circuit_size < COOLDOWN_PARTICLE_THRESHOLD ?
@@ -973,7 +997,6 @@ void Circuit::reset() {
     for (auto b : branch_cache)
         delete b;
 
-    recalc_next_frame = false;
     global_rspk_ids.clear();
     constrained_nodes.clear();
     branch_map.clear();
@@ -981,6 +1004,8 @@ void Circuit::reset() {
     connection_map.clear();
     branch_cache.clear();
 
+    recalc_next_frame = false;
+    new_solution_exists = true;
     requires_divergence_checking = false;
     contains_dynamic = false;
     solution_computed = false;
@@ -1012,6 +1037,7 @@ Circuit::Circuit(const Circuit &other) {
     recalc_next_frame = other.recalc_next_frame;
     startx = other.startx, starty = other.starty;
     contains_dynamic = other.contains_dynamic;
+    new_solution_exists = other.new_solution_exists;
     requires_divergence_checking = other.requires_divergence_checking;
     highest_node_id = other.highest_node_id;
     circuit_size = other.circuit_size;

@@ -50,6 +50,10 @@ private:
     int recalc_cooldown_timer = 0;
     int circuit_size = 0;
 
+    // Solution solving cache
+    bool new_solution_exists = true;
+    std::vector<double> prev_solution;
+
     // These can contain duplicate node-node id pairs, and follow same order, ie if connection map
     // for node 5 at index 2 is node 3, then the branch at node 5 index 2 is for node 3
     // Note: duplicate node-node pairs indicate multiple connections from 1 node to another
