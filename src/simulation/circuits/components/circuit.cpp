@@ -11,6 +11,7 @@
 #include "eigen/Dense"
 
 #include <iostream>
+#include <cmath>
 
 #define YX(y, x) ((y) * XRES + (x))
 
@@ -745,8 +746,11 @@ void Circuit::solve(bool allow_recursion) {
         b[row2] = supernodes[j].voltage;
     }
 
-    x = A.colPivHouseholderQr().solve(b);
-    
+    x = A.partialPivLu().solve(b); // colPivHouseholderQr is more accurate but slower
+    if (isnanl(x[0])) // Failed to solve system, set all voltages to 0
+        for (int i = 0; i < x.size(); i++)
+            x[i] = 0;
+
     // std::cout << A << "\n";
     // std::cout << b << "\n";
     // std::cout << x << "\n";

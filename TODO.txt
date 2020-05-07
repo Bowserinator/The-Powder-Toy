@@ -798,9 +798,6 @@ possible 2nd node trimming:
 - trim nodes that don't conenct to anything 
 - nodes in series like A - B - C, trim B to only A-C
 
-experiment with other faster solvers
-- remove nan with 0
-- llt doesn't work 
 
 portals maybe
 - portalsa re just buffer chips maybe
