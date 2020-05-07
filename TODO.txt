@@ -757,12 +757,12 @@ https://en.wikipedia.org/wiki/Iron%E2%80%93hydrogen_resistor
 
 check circuit reloading - memory error
 
-volt should not update every frame or circuit also will :(
-
 VOLT problems:
 - node should not be inside of VOLT
 - node inside of volt for some reason doesn't work
 - try multi output
+
+or simple solution: using console or PROP tool forces circuit update
 
 sometimes invalid rspk id is created??
 - like entire b->rspk_ids is invalid

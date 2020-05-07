@@ -7,8 +7,8 @@
 #define POSITIVE_TERMINAL    0x01
 #define NEGATIVE_TERMINAL    0x02
 #define NEGATIVE_RESISTANCE  0x04
-#define DYNAMIC_RESISTANCE   0x08
-#define DYNAMIC_PARTICLE     0x10
+#define DYNAMIC_RESISTANCE   0x08 // Resistance can change per frame
+#define DYNAMIC_PARTICLE     0x10 // Requires recalculation and constant updates
 #define IS_CHIP              0x20
 #define IS_VOLTAGE_SOURCE    0x40
 #define REQUIRES_INTEGRATION 0x80
@@ -21,7 +21,7 @@ public:
 };
 
 const std::unordered_map<ElementType, CircuitData> circuit_data({
-    { PT_VOLT, CircuitData( REALLY_BIG_RESISTANCE, IS_VOLTAGE_SOURCE | DYNAMIC_PARTICLE )}, // If wired improperly turns into big resistor
+    { PT_VOLT, CircuitData( REALLY_BIG_RESISTANCE, IS_VOLTAGE_SOURCE )}, // If wired improperly turns into big resistor
     { PT_GRND, CircuitData( SUPERCONDUCTING_RESISTANCE )},
     { PT_COPR, CircuitData( 1.72e-8, POSITIVE_TERMINAL )},
     { PT_PSCN, CircuitData( 30, POSITIVE_TERMINAL )},
@@ -41,7 +41,7 @@ const std::unordered_map<ElementType, CircuitData> circuit_data({
     { PT_MERC, CircuitData( 0, DYNAMIC_RESISTANCE )},
     { PT_CRBN, CircuitData( 0, DYNAMIC_RESISTANCE )},
     { PT_TIN,  CircuitData( 0, DYNAMIC_RESISTANCE )},
-    { PT_RSTR, CircuitData( 0, DYNAMIC_RESISTANCE )},
+    { PT_RSTR, CircuitData( 0 )},
 
     { PT_SWCH, CircuitData( 1e-8, DYNAMIC_PARTICLE )},
     // Is a really big resistor at steady state

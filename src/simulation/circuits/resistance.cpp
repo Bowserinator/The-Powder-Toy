@@ -38,6 +38,10 @@ double get_resistance(ElementType type, Particle *parts, ParticleId i, Simulatio
     if (!valid_conductor(type, sim, i) || is_chip(type)) 
         return REALLY_BIG_RESISTANCE;
 
+    // Resistor stores resistance in pavg0
+    if (type == PT_RSTR)
+        return parts[i].pavg[0];
+
     // Dynamic (includes negative resistances) update every frame
     // so they have a 0 base resistance and a "dynamic" resistance
     // that's recalculated every frame that's added on
@@ -59,10 +63,6 @@ double get_effective_resistance(ElementType type, Particle *parts, ParticleId i,
     switch(type) {
         case PT_SWCH:
             return parts[i].life >= 4 ? circuit_data.at(type).resistance : REALLY_BIG_RESISTANCE;
-
-        // Resistor stores resistance in pavg0
-        case PT_RSTR:
-            return parts[i].pavg[0];
 
         // Quartz
         case PT_QRTZ:
