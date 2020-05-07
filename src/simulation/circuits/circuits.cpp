@@ -29,10 +29,6 @@ void CIRCUITS::update_all_circuits() {
             c->reset();
             c->generate();
         }
-        if (!c->branch_cache_size()) {
-            delete_circuit(i);
-            continue;
-        }
         c->reset_effective_resistances();
         c->solve();
         c->update_sim();

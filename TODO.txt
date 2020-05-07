@@ -761,8 +761,6 @@ VOLT problems:
 - node inside of volt for some reason doesn't work
 - try multi output
 
-lots of VOLT lags due to regen-  delete 
-- rate limit deconstruct rate
 
 valgrind ./build/powder64 --leak-check=full > valgrind.log 2>&1
 
