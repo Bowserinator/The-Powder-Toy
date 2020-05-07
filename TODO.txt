@@ -755,17 +755,23 @@ https://en.wikipedia.org/wiki/Iron%E2%80%93hydrogen_resistor
 - Add node method
 - ReID() nodes method at end that rids of unused nodes
 
-check circuit reloading - memory error
 
 VOLT problems:
 - node should not be inside of VOLT
 - node inside of volt for some reason doesn't work
 - try multi output
 
-or simple solution: using console or PROP tool forces circuit update
+lots of VOLT lags due to regen-  delete 
+- rate limit deconstruct rate
 
-sometimes invalid rspk id is created??
-- like entire b->rspk_ids is invalid
+valgrind ./build/powder64 --leak-check=full > valgrind.log 2>&1
+
+
+
+
+or simple solution: using console or PROP tool forces circuit update
+- nah, because ERAY and shit, so watch particle states
+
 
 ground produces a lot of nodes inside? - also doesn't always work conected to circuit as ablob
 - debug: check branch V1, V2, resistance, etc...

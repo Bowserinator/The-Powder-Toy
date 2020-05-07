@@ -5709,6 +5709,7 @@ Simulation::Simulation():
 	// EM and stress
 	emfield = new EMField(*this);
 	stressField = new StressField(this);
+	std::fill(std::begin(circuit_map), std::begin(circuit_map) + NPART, nullptr);
 
 	msections = LoadMenus();
 	wtypes = LoadWalls();

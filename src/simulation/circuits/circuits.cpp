@@ -14,20 +14,10 @@ void CIRCUITS::add_circuit(int x, int y, Simulation * sim) {
         return; // Already part of a circuit
 
     Circuit * c = new Circuit(x, y, sim);
-    if (!c->branch_cache_size()) {
-        delete c;
-        return;
-    }
     all_circuits.push_back(c);
 }
 
 void CIRCUITS::delete_circuit(int i) {
-    // Why don't we put this in the destructor?
-    // Doing so causes extreme lag as invalid circuits are deleted
-    // but by reseting circuit_map this causes the invalid circuit to
-    // be recreated next frame over and over (ie in blobs of VOLT)
-    for (auto id : all_circuits[i]->get_global_rspk_ids())
-        circuit_map[id] = nullptr;
     delete all_circuits[i];
     all_circuits.erase(all_circuits.begin() + i);
 }

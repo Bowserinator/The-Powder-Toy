@@ -1067,6 +1067,8 @@ Circuit::Circuit(const Circuit &other) {
 Circuit::~Circuit() {
     delete_maps();
     delete copy;
+    for (auto id : get_global_rspk_ids())
+        circuit_map[id] = nullptr;
     for (unsigned i = 0; i < branch_cache.size(); i++)
         delete branch_cache[i];
 }

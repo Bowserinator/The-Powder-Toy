@@ -34,10 +34,10 @@ class Branch;
 class Circuit {
     friend Branch;
 private:
-    Simulation *sim;
+    Simulation * sim;
     NodeId * node_skeleton_map = nullptr;
     char * immutable_node_map = nullptr; // 1 = directly adjacent, 2 = diagonally adjacent
-    Circuit *copy = nullptr;                   // Copy of circuit to solve for divergence check
+    Circuit * copy = nullptr;                   // Copy of circuit to solve for divergence check
 
     bool requires_divergence_checking = false; // Steady state bounding for numeric integration (capacitors / inductors)
     bool computed_divergence = false;          // One time flag for creation
