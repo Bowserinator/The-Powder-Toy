@@ -54,10 +54,18 @@ void Branch::compute_dynamic_resistances(Simulation * sim, Circuit * c) {
 }
 
 void Branch::compute_dynamic_voltages(Simulation *sim, Circuit * c) {
-    if (branch_type == CAPACITOR) {
+    if (branch_type == CAPACITOR || branch_type == VOLTAGE_SOURCE) {
+        int original_polarity = voltage_gain < 0 ? -1 : 1;
+        
+        // If changing this behavior also change in circuit/add_branch_from_skeleton
         voltage_gain = 0.0;
         for (auto id : ids)
-            voltage_gain += sim->parts[id].pavg[1];
+            voltage_gain += branch_type == CAPACITOR ?
+                sim->parts[id].pavg[1] : // Capactor is pavg1
+                sim->parts[id].pavg[0];  // Voltage source is pavg0
+
+        voltage_gain /= (ids.size() < 1 ? 1 : ids.size());
+        voltage_gain *= original_polarity;
     }
     else if (branch_type == CHIP) {
         float output_voltage = 0.0;

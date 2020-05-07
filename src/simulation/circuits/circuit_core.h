@@ -55,6 +55,6 @@ const Volts DIODE_V_BREAKDOWN = 1000.0f;
 // Cooldown for recalc
 const int COOLDOWN_PARTICLE_THRESHOLD = 1500;
 const int COOLDOWN_BELOW_THRESHOLD = 0;  // In frames
-const int COOLDOWN_ABOVE_THRESHOLD = 12; // In frames
+const int COOLDOWN_ABOVE_THRESHOLD = 20; // In frames
 
 #endif

@@ -21,7 +21,7 @@ public:
 };
 
 const std::unordered_map<ElementType, CircuitData> circuit_data({
-    { PT_VOLT, CircuitData( REALLY_BIG_RESISTANCE, IS_VOLTAGE_SOURCE )}, // If wired improperly turns into big resistor
+    { PT_VOLT, CircuitData( REALLY_BIG_RESISTANCE, IS_VOLTAGE_SOURCE | DYNAMIC_PARTICLE )}, // If wired improperly turns into big resistor
     { PT_GRND, CircuitData( SUPERCONDUCTING_RESISTANCE )},
     { PT_COPR, CircuitData( 1.72e-8, POSITIVE_TERMINAL )},
     { PT_PSCN, CircuitData( 30, POSITIVE_TERMINAL )},

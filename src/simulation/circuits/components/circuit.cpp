@@ -9,7 +9,6 @@
 
 #include "eigen/Core"
 #include "eigen/Dense"
-#include "eigen/SparseCholesky"
 
 #include <iostream>
 
@@ -385,6 +384,7 @@ void Circuit::add_branch_from_skeleton(const coord_vec &skeleton, Pos start_node
             current_polarity = CircuitParams::POSITIVE_POLARITY;
         }
         else if (is_negative_terminal(rt)) {
+            // If changing this behavior also change in branch/compute_dynamic_voltages
             if (current_polarity == CircuitParams::POSITIVE_POLARITY)
                 data.voltage_gain += current_voltage / std::max(1, source_count);
             if (TYP(r) == PT_NSCN && TYP(sim->pmap[py][px]) == PT_PSCN) // PSCN -> NSCN

@@ -755,31 +755,34 @@ https://en.wikipedia.org/wiki/Iron%E2%80%93hydrogen_resistor
 - Add node method
 - ReID() nodes method at end that rids of unused nodes
 
-coputeDynamicVoltages polarity check?
-- make VOLT dynamic too
 
 VOLT problems:
 - node should not be inside of VOLT
 - node inside of volt for some reason doesn't work
 - try multi output
 
+diff previous solution from solve()
+
 sometimes invalid rspk id is created??
 - like entire b->rspk_ids is invalid
 
-- really small resistance - segfault
+ground produces a lot of nodes inside? - also doesn't always work conected to circuit as ablob
+- debug: check branch V1, V2, resistance, etc...
+- connection bypass at VOLT connection???
+- thick connections :(
+
 
 - molten circuits tend to resolidify into large messes of nodes
     - entropy grid somehow and limit max number of nodes in a grid if entropy is high
     - count deviations from a straight line
 
+better cooldown timer?
 
 deal with numer of nodes overflowing
 
 limit number of nodes in a circuit anyways? no need to use short, maybe a byte will do
 optimize memory:
 - undo redo don't save circuit, recompute while paused
-
-updating resistor values should trigger re-solve
 
 check normal SPRK stuff 
 - like electrolysis
@@ -790,8 +793,9 @@ possible 2nd node trimming:
 - trim nodes that don't conenct to anything 
 - nodes in series like A - B - C, trim B to only A-C
 
-
-use sparsematrix solver somehow?
+experiment with other faster solvers
+- remove nan with 0
+- llt doesn't work 
 
 portals maybe
 - portalsa re just buffer chips maybe
