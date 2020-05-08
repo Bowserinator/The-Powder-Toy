@@ -641,6 +641,7 @@ sulfur hexafluoride - instulating gas in transformers?
 
 move sim: stressField->ComputeStress(parts[i].x + 0.5f, parts[i].y + 0.5f);
 
+add cracker1000's hud script
 
 ethanol
 - kill BCTR
@@ -724,9 +725,26 @@ INWR different tmp conductivity?
 
 thermoresistor unmeltable too
 
+DONE:
+ADJACENT_PRIORITY_X loops are incorrect:
+- replace with single vector pair
+- big brain idea:
+    - iteratively check spokes like
+     \|/
+     ---
+     /|\
+first spoke to intersect wins
+    iterate like every other grid so you can use one right beside you
+- need to clear current voltage and current during floodfill
+    - do everytime sim_update is called?
+-- it's possible spoke will never intersect
+if reach nothing then do nothing??
+^ special case check needed: if closer to another branch, make it not allow to traverse across gaps
 
 make group filling a bit better maybe?
-- handle correct votlages and shit somehow
+
+
+
 
 TRFR : transformer
 
@@ -772,16 +790,11 @@ or simple solution: using console or PROP tool forces circuit update
 
 
 ground produces a lot of nodes inside? - also doesn't always work conected to circuit as ablob
-- debug: check branch V1, V2, resistance, etc...
-- connection bypass at VOLT connection???
-- thick connections :(
 
 
 - molten circuits tend to resolidify into large messes of nodes
     - entropy grid somehow and limit max number of nodes in a grid if entropy is high
     - count deviations from a straight line
-
-better cooldown timer?
 
 deal with numer of nodes overflowing
 
@@ -814,8 +827,6 @@ if V_BE > some max voltage turn into short
 else 0.7 V drop
 
 NPN: do opposite
-
-RSPRK removes circuit when deleted - move that to kill_part
 
 - magnetic field induces inductor current
 

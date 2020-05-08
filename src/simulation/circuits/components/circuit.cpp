@@ -85,14 +85,15 @@ void Circuit::mark_nodes(const coord_vec &skeleton, coord_vec &nodes) {
          * another conductor that's not itself to avoid excessive useless nodes */
 
         if (type == PT_GRND) {
-            for (int rx : ADJACENT_PRIORITY_RX)
-            for (int ry : ADJACENT_PRIORITY_RY)
+            for (auto &rxy : ADJACENT_PRIORITY) {
+			    int rx = rxy.first, ry = rxy.second;
                 if (node_skeleton_map[YX(y + ry, x + rx)] && TYP(sim->pmap[y + ry][x + rx]) != type) {
                     add_immutable_node(node_id, pos, false);
                     nodes.push_back(pos);
                     node_id++;
                     goto end_node_type1;
                 }
+            }
             end_node_type1:;
         }
 
@@ -102,14 +103,15 @@ void Circuit::mark_nodes(const coord_vec &skeleton, coord_vec &nodes) {
          * (-) around it marked as nodes */
 
         else if (type == PT_INDC) {
-            for (int rx : ADJACENT_PRIORITY_RX)
-            for (int ry : ADJACENT_PRIORITY_RY)
+            for (auto &rxy : ADJACENT_PRIORITY) {
+			    int rx = rxy.first, ry = rxy.second;
                 if (node_skeleton_map[YX(y + ry, x + rx)] && TYP(sim->pmap[y + ry][x + rx]) != type) {
                     Pos npos(x + rx, y + ry);
                     add_immutable_node(node_id, npos, rx && ry);
                     nodes.push_back(npos);
                     node_id++;
                 }
+            }
         }
 
         /* Special Node Type 3
@@ -122,8 +124,8 @@ void Circuit::mark_nodes(const coord_vec &skeleton, coord_vec &nodes) {
             bool t_is_silicon = type == PT_PSCN || type == PT_NSCN;
             int other_silicon_type = type == PT_PSCN ? PT_NSCN : PT_PSCN;
 
-            for (int rx : ADJACENT_PRIORITY_RX)
-            for (int ry : ADJACENT_PRIORITY_RY) {
+            for (auto &rxy : ADJACENT_PRIORITY) {
+			    int rx = rxy.first, ry = rxy.second;
                 int t = TYP(sim->pmap[y + ry][x + rx]);
                 if (is_voltage_source(t) || is_chip(t) || (t_is_silicon && t == other_silicon_type)) {
                     add_immutable_node(node_id, pos, rx && ry);
@@ -573,8 +575,8 @@ void Circuit::add_branches(const coord_vec &skeleton) {
             sim->parts[ID(sim->photons[y][x])].tmp = node_skeleton_map[YX(y, x)];
 
             bool adjacent_node = false;
-            for (int rx : ADJACENT_PRIORITY_RX)
-            for (int ry : ADJACENT_PRIORITY_RY) {
+            for (auto &rxy : ADJACENT_PRIORITY) {
+			    int rx = rxy.first, ry = rxy.second;
                 // Since directly adjacent takes priority this check will run before the next
                 // else if statement
                 if ((rx == 0 || ry == 0) && node_skeleton_map[YX(y + ry, x + rx)] > CircuitParams::SKELETON)
@@ -869,6 +871,10 @@ void Circuit::solve(bool allow_recursion) {
 }
 
 void Circuit::update_sim() {
+    // Skip updating simulation for mostly static components
+    if (!contains_dynamic && solution_computed && !new_solution_exists && sim->timer % FORCE_RECALC_EVERY_N_FRAMES != 0)
+        return;
+
     for (auto node_id = connection_map.begin(); node_id != connection_map.end(); node_id++) {
         // Normal branches
         for (size_t i = 0; i < node_id->second.size(); i++) {
@@ -892,9 +898,6 @@ void Circuit::update_sim() {
             sim->parts[b->node1_id].pavg[1] = restrict_double_to_flt(b->current);
             sim->parts[b->node2_id].pavg[0] = restrict_double_to_flt(b->V2);
             sim->parts[b->node2_id].pavg[1] = restrict_double_to_flt(b->current);
-
-            if (b->rspk_ids.size() != b->ids.size())
-                std::cout << "Error" << b->node1 << " -> " << b->node2 << "\n";
 
             for (auto id : b->rspk_ids) {
                 x = (int)(0.5f + sim->parts[id].x);
@@ -958,14 +961,23 @@ void Circuit::update_sim() {
             }
         }
     }
-    // Make RSPK not die
-    for (auto id : global_rspk_ids)
+    // Make RSPK not die, and set flag tmp2 = 0 to trigger recalc for non-skeleton nodes
+    for (auto id : global_rspk_ids) {
         sim->parts[id].life = BASE_RSPK_LIFE;
+        sim->parts[id].tmp2 = 0;
+    }
 }
 
 
 
 void Circuit::reset_effective_resistances() {
+    // Don't need to reset: circuit is non-dynamic and we already solved it
+    // Force recalc is for when something changes that doesn't delete / add particles,
+    // (like a console command)
+    if (!contains_dynamic && solution_computed &&
+            sim->timer % FORCE_RECALC_EVERY_N_FRAMES != 0)
+        return;
+
     for (auto b : branch_cache) {
         b->recompute_switches = true;
         b->resistance = b->base_resistance;

@@ -27,5 +27,6 @@ inline bool is_dynamic_particle(int type)     { return get_flags(type) & DYNAMIC
 inline bool is_chip(int type)                 { return get_flags(type) & IS_CHIP; } 
 inline bool is_voltage_source(int type)       { return get_flags(type) & IS_VOLTAGE_SOURCE; }
 inline bool is_integration_particle(int type) { return get_flags(type) & REQUIRES_INTEGRATION; }
+inline bool doesnt_heat_up(int type)          { return get_flags(type) & DONT_HEAT_UP; }
 
 #endif

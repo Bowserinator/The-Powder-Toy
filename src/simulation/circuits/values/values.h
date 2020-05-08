@@ -7,11 +7,12 @@
 #define POSITIVE_TERMINAL    0x01
 #define NEGATIVE_TERMINAL    0x02
 #define NEGATIVE_RESISTANCE  0x04
-#define DYNAMIC_RESISTANCE   0x08 // Resistance can change per frame
-#define DYNAMIC_PARTICLE     0x10 // Requires recalculation and constant updates
+#define DYNAMIC_RESISTANCE   0x08  // Resistance can change per frame
+#define DYNAMIC_PARTICLE     0x10  // Requires recalculation and constant updates
 #define IS_CHIP              0x20
 #define IS_VOLTAGE_SOURCE    0x40
 #define REQUIRES_INTEGRATION 0x80
+#define DONT_HEAT_UP         0x100 // Doesn't heat up with current
 
 class CircuitData {
 public:
@@ -21,7 +22,7 @@ public:
 };
 
 const std::unordered_map<ElementType, CircuitData> circuit_data({
-    { PT_VOLT, CircuitData( REALLY_BIG_RESISTANCE, IS_VOLTAGE_SOURCE )}, // If wired improperly turns into big resistor
+    { PT_VOLT, CircuitData( REALLY_BIG_RESISTANCE, IS_VOLTAGE_SOURCE | DONT_HEAT_UP )}, // If wired improperly turns into big resistor
     { PT_GRND, CircuitData( SUPERCONDUCTING_RESISTANCE )},
     { PT_COPR, CircuitData( 1.72e-8, POSITIVE_TERMINAL )},
     { PT_PSCN, CircuitData( 30, POSITIVE_TERMINAL )},
@@ -43,9 +44,10 @@ const std::unordered_map<ElementType, CircuitData> circuit_data({
     { PT_TIN,  CircuitData( 0, DYNAMIC_RESISTANCE )},
     { PT_RSTR, CircuitData( 0 )},
 
-    { PT_SWCH, CircuitData( 1e-8, DYNAMIC_PARTICLE )},
+    { PT_SWCH, CircuitData( 1e-8, DYNAMIC_PARTICLE | DONT_HEAT_UP )},
     // Is a really big resistor at steady state
-    { PT_CAPR, CircuitData( REALLY_BIG_RESISTANCE, DYNAMIC_PARTICLE | IS_VOLTAGE_SOURCE | REQUIRES_INTEGRATION )},
+    { PT_CAPR, CircuitData( REALLY_BIG_RESISTANCE,
+        DYNAMIC_PARTICLE | IS_VOLTAGE_SOURCE | REQUIRES_INTEGRATION | DONT_HEAT_UP )},
     // Is a wire at steady state
     { PT_INDC, CircuitData( 0, DYNAMIC_PARTICLE | REQUIRES_INTEGRATION )},
 

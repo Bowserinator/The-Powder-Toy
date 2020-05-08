@@ -1,15 +1,21 @@
 #include "simulation/ElementCommon.h"
 #include "simulation/magnetics/magnetics.h"
+
 #include "simulation/circuits/circuits.h"
 #include "simulation/circuits/resistance.h"
 #include "simulation/circuits/framework.h"
+#include "simulation/circuits/components/circuit.h"
 
 static int update(UPDATE_FUNC_ARGS);
 static int graphics(GRAPHICS_FUNC_ARGS);
 static void changeType(ELEMENT_CHANGETYPE_FUNC_ARGS);
 
-#include <queue>
+#include <vector>
+#include <set>
 #include <iostream>
+
+const static std::vector<int> itrx({ -1, -1, -1, 0, 0, 1, 1, 1 });
+const static std::vector<int> itry({ -1, 0, 1, -1, 1, -1, 0, 1 });
 
 namespace RSPK {
 const int REFRESH_EVERY_FRAMES = 5;
@@ -83,6 +89,7 @@ static int update(UPDATE_FUNC_ARGS) {
 	/**
 	 * Properties:
 	 * tmp   - Current node ID, 1 = branch, 0 = not part of skeleton
+	 * tmp2  - Whether non-skeleton nodes are updated (1 = up to date from skeleton, 2 = up to date by proxy)
 	 * pavg0 - Voltage relative to ground
 	 * pavg1 - Current through pixel
 	 */
@@ -106,7 +113,6 @@ static int update(UPDATE_FUNC_ARGS) {
 			int fromtype = TYP(pmap[y][x]);
 			int totype = TYP(pmap[y+ry][x+rx]);
 
-			parts[i].tmp2 = circuit_map[i] ? 1 :0;
 			if (TYP(r) != PT_RSPK && circuit_map[i] && valid_conductor(totype, sim, ID(pmap[y+ry][x+rx])) &&
 			   		allow_conduction(totype, fromtype)) {
 				circuit_map[i]->flag_recalc();
@@ -118,7 +124,7 @@ static int update(UPDATE_FUNC_ARGS) {
 
 	// Heat up the conductor its on
 	double power = parts[i].pavg[1] * parts[i].pavg[1] * resistance; // I^2 * R
-	if (ontype != PT_CAPR && ontype != PT_VOLT && ontype != PT_SWCH) {
+	if (!doesnt_heat_up(ontype)) {
 		if (power > MAX_TEMP)
 			parts[ID(pmap[y][x])].temp = MAX_TEMP;
 		else
@@ -136,116 +142,134 @@ static int update(UPDATE_FUNC_ARGS) {
 			break;
 	}
  
-	float res = 1.0f; // get_resistance(parts[i].ctype, parts, ID(pmap[y][x]), sim);
-
 	// Set ctype and temp to whats under it
 	parts[i].ctype = TYP(pmap[y][x]);
 	parts[i].temp = parts[ID(pmap[y][x])].temp;
-	parts[i].dcolour = 10000 * res;
 
-	if (!parts[i].pavg[0] && !parts[i].pavg[1]) {
-		for (int rx = -1; rx <= 1; rx++)
-		for (int ry = -1; ry <= 1; ry++)
-			if (rx || ry) {
-				int r = sim->photons[y + ry][x + rx];
-				if (r && TYP(r) == PT_RSPK && parts[ID(r)].tmp) {
-					parts[i].pavg[0] = parts[ID(r)].pavg[0];
-					parts[i].pavg[1] = parts[ID(r)].pavg[1];
-					parts[i].life = parts[ID(r)].life - 1;
-					if (!circuit_map[i] && circuit_map[ID(r)])
-						circuit_map[i] = circuit_map[ID(r)];
+	if (!parts[i].tmp && !parts[i].tmp2) {
+		int r2 = -1;
+		int new_tmp2 = 1;
+
+		// Check skeleton first
+		for (auto &rxy : ADJACENT_PRIORITY) {
+			int rx = rxy.first, ry = rxy.second;
+			int r = sim->photons[y + ry][x + rx];
+			if (TYP(r) == PT_RSPK && parts[ID(r)].tmp) {
+				r2 = r;
+				goto end;
+			}
+		}
+		// Next check already scanned nearby
+		for (auto &rxy : ADJACENT_PRIORITY) {
+			int rx = rxy.first, ry = rxy.second;
+			int r = sim->photons[y + ry][x + rx];
+			if (TYP(r) == PT_RSPK && parts[ID(r)].tmp2 == 1) {
+				r2 = r, new_tmp2 = 2;
+				goto end;
+			}
+		}
+		// Scan in a spoke circle pattern for skeleton
+		for (int delta = 1; delta < XRES; delta++) {
+			std::set<int> invalidated_directions;
+			for (int dx : itrx)
+			for (int dy : itry) {
+				// Current direction cannot be traversed
+				int direction_hash = dy * 10 + dx;
+				if (invalidated_directions.find(direction_hash) != invalidated_directions.end())
+					continue;
+				if (invalidated_directions.size() == itrx.size())
+					goto end; // All directions are invalid now
+
+				int delta2 = std::round(delta * ((dx != 0 && dy != 0) ? 0.7f : 1.0f));
+				if (x + delta2 * dx >= XRES || x + delta2 * dx < 0 ||
+					y + delta2 * dy >= YRES || y + delta2 * dy < 0)
+					continue;
+				
+				int r = sim->photons[y + delta2 * dy][x + delta2 * dx];
+				if (!r || TYP(r) != PT_RSPK) {
+					invalidated_directions.insert(direction_hash);
+					continue;
+				}
+
+				if (parts[ID(r)].tmp || parts[ID(r)].tmp2 == 1) {
+					r2 = r;
 					goto end;
 				}
-			}
-		for (int rx = -1; rx <= 1; rx++)
-		for (int ry = -1; ry <= 1; ry++)
-			if (rx || ry) {
-				int r = sim->photons[y + ry][x + rx];
-				if (r && TYP(r) == PT_RSPK && (sim->parts[ID(r)].pavg[0] || sim->parts[ID(r)].pavg[1])) {
-					parts[i].pavg[0] = parts[ID(r)].pavg[0];
-					parts[i].pavg[1] = parts[ID(r)].pavg[1];
-					parts[i].life = parts[ID(r)].life - 1;
-					if (!circuit_map[i] && circuit_map[ID(r)])
-						circuit_map[i] = circuit_map[ID(r)];
-					goto end;
-				}
-			}
+			}	
+		}
+
 		end:;
+		// Failed to find a skeleton, at this point we'll copy anything
+		if (r2 < 0) {
+			parts[i].tmp2 = 2; // So it doesn't keep trying and lag the game
+			for (auto &rxy : ADJACENT_PRIORITY) {
+				int rx = rxy.first, ry = rxy.second;
+				int r = sim->photons[y + ry][x + rx];
+				if (TYP(r) == PT_RSPK && (parts[ID(r)].pavg[0] || parts[ID(r)].pavg[1])) {
+					r2 = r;
+					goto end2;
+				}
+			}
+		}
+		end2:;
+
+		if (r2 > -1) {
+			int r = r2;
+			parts[i].pavg[0] = parts[ID(r)].pavg[0];
+			parts[i].pavg[1] = parts[ID(r)].pavg[1];
+			parts[i].tmp2 = new_tmp2;
+
+			if (!circuit_map[i] && circuit_map[ID(r)])
+				circuit_map[i] = circuit_map[ID(r)];
+		}
 	}
-
-
-	// Kill on low life, life decrements below 0 if no longer connected to a voltage source
-	// that regenerates life
-	// Also kill self if no voltage drop (no current)
-	// Also kill self if no longer on a conductor and not a source (tmp = 1)
-	// parts[i].life--;
-
-
-	// Heat up the conductor its on
-	int r = pmap[y][x];
-	// float power = RSPK::get_power(x, y, sim);
-	// parts[ID(r)].temp += power / 200.0f;
-
-	// Make sure self conductor can't be SPRKed
-	// TODO this breaks SWCH
-	// parts[ID(r)].life = 10;
 
 	// Project electric field
-	float efield = res == 0.0f ? 0.0f : isign(parts[i].pavg[0]) * parts[i].pavg[1] / res;
-	sim->emfield->electric[FASTXY(x / EMCELL, y / EMCELL)] += efield;
+	// float efield = res == 0.0f ? 0.0f : isign(parts[i].pavg[0]) * parts[i].pavg[1] / res;
+	// sim->emfield->electric[FASTXY(x / EMCELL, y / EMCELL)] += efield;
 
-	// Due to float point precision issues voltage drops are 0 when high voltages are present
-	// So the solution: we superheat metals when resistance is non-zero
-	// Electric field also doesn't exist, so we just set it to 2560
-	// if (res != 0.0f && parts[i].pavg[0] > 1000000) {
-	// 	parts[ID(pmap[y][x])].temp += 9000.0f;
-	// 	sim->emfield->electric[FASTXY(x / EMCELL, y / EMCELL)] += isign(parts[i].pavg[0]) * 2560.0f;
+	// if (parts[i].ctype != PT_VOLT) {
+	// 	for (int rx = -1; rx <= 1; ++rx)
+	// 	for (int ry = -1; ry <= 1; ++ry)
+	// 		if (BOUNDS_CHECK && (rx || ry)) {
+	// 			r = pmap[y + ry][x + rx];
+	// 			if (!r && RNG::Ref().chance(1, 100)) {
+	// 				// St elmo's fire
+	// 				if (parts[i].pavg[0] > 100000) {
+	// 					int ni = sim->create_part(-1, x + rx ,y + ry, PT_PLSM);
+	// 					if (ni > -1) {
+	// 						parts[ni].temp = parts[i].temp;
+	// 						parts[ni].life = RNG::Ref().between(0, 70);
+	// 					}
+	// 				}
+	// 				// Thermonic emission
+	// 				if (parts[i].pavg[0] > 1000) {
+	// 					// int ni = sim->create_part(-3, x + rx, y + ry, PT_ELEC);
+	// 					// if (ni > -1) {
+	// 					// 	parts[ni].temp = parts[i].temp;
+	// 					// 	parts[ni].life = RNG::Ref().between(0, 570);
+	// 					// 	parts[ni].vx = rx;
+	// 					// 	parts[ni].vy = ry;
+	// 					// }
+	// 				}
+	// 			}
+	// 			// Ionizing gases
+	// 			if (parts[i].pavg[0] > 1000 && sim->elements[TYP(r)].Properties & TYPE_GAS) {
+	// 				sim->part_change_type(ID(r), x + rx, y + ry, PT_PLSM);
+	// 				parts[ID(r)].life = RNG::Ref().between(0, 570);
+	// 			}
+	// 		}
 	// }
-
-	if (parts[i].ctype != PT_VOLT) {
-		for (int rx = -1; rx <= 1; ++rx)
-		for (int ry = -1; ry <= 1; ++ry)
-			if (BOUNDS_CHECK && (rx || ry)) {
-				r = pmap[y + ry][x + rx];
-				if (!r && RNG::Ref().chance(1, 100)) {
-					// St elmo's fire
-					if (parts[i].pavg[0] > 100000) {
-						int ni = sim->create_part(-1, x + rx ,y + ry, PT_PLSM);
-						if (ni > -1) {
-							parts[ni].temp = parts[i].temp;
-							parts[ni].life = RNG::Ref().between(0, 70);
-						}
-					}
-					// Thermonic emission
-					if (parts[i].pavg[0] > 1000) {
-						// int ni = sim->create_part(-3, x + rx, y + ry, PT_ELEC);
-						// if (ni > -1) {
-						// 	parts[ni].temp = parts[i].temp;
-						// 	parts[ni].life = RNG::Ref().between(0, 570);
-						// 	parts[ni].vx = rx;
-						// 	parts[ni].vy = ry;
-						// }
-					}
-				}
-				// Ionizing gases
-				if (parts[i].pavg[0] > 1000 && sim->elements[TYP(r)].Properties & TYPE_GAS) {
-					sim->part_change_type(ID(r), x + rx, y + ry, PT_PLSM);
-					parts[ID(r)].life = RNG::Ref().between(0, 570);
-				}
-			}
-	}
 
 	// Merge self with any RSPK occupying same space
 	while (true) {
-		r = sim->photons[y][x];
+		int r = sim->photons[y][x];
 		if (r && ID(r) != i && TYP(r) == PT_RSPK) {
 			parts[i].pavg[0] += parts[ID(r)].pavg[0];
 			parts[i].pavg[1] += parts[ID(r)].pavg[1];
 			sim->kill_part(ID(r));
 		}
-		else {
-			break;
-		}
+		else { break; }
 	}
 
 	return 0;
@@ -254,8 +278,17 @@ static int update(UPDATE_FUNC_ARGS) {
 static int graphics(GRAPHICS_FUNC_ARGS) {
 	*colr = 255; *colg = *colb = 0;
 	*cola = 255;
-	if (cpart->tmp == 0)
-		*cola = *colr = *colg = *colb = 100;
+
+	if (cpart->tmp2 == 1 && !cpart->tmp) {
+		*colr = 255;
+		*colg = 255;
+		*colb = 0;
+		if (cpart->tmp2 == 2)
+			*colg = 180;
+	}
+	else if (!cpart->tmp) {
+		*colr = *colg = *colb = 200;
+	}
 
 	if (cpart->tmp > 1) {
 		*colr = 0;
@@ -264,7 +297,6 @@ static int graphics(GRAPHICS_FUNC_ARGS) {
 		//ren->fillcircle(cpart->x - 6, cpart->y - 6, 5, 5, 255, 255, 0, 55);
 		//ren->drawtext(cpart->x, cpart->y - 10, String::Build(cpart->pavg[1]), 0,0,0, 255);
 	}
-
 	return 0;
 
 	// Power = V^2 / R and is used for brightness

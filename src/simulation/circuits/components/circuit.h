@@ -9,8 +9,16 @@
 #include <vector>
 #include <unordered_map>
 
-const std::vector<int> ADJACENT_PRIORITY_RX({ 0, 0, -1, 1, -1, -1, 1, 1});
-const std::vector<int> ADJACENT_PRIORITY_RY({ -1, 1, 0, 0, 1, -1, 1, -1});
+const std::vector<std::pair<int, int> > ADJACENT_PRIORITY({
+    std::make_pair(-1, 0),
+    std::make_pair(0, -1),
+    std::make_pair(1, 0),
+    std::make_pair(0, 1),
+    std::make_pair(-1, 1),
+    std::make_pair(-1, -1),
+    std::make_pair(1, -1),
+    std::make_pair(-1, 1)
+});
 
 namespace CircuitParams {
     const NodeId NOSKELETON = 0;
