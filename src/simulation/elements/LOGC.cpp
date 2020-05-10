@@ -1,14 +1,14 @@
 #include "simulation/ElementCommon.h"
 #include "simulation/circuits/framework.h"
 #include "simulation/circuits/circuits.h"
+#include "simulation/circuits/components/chip.h"
 
 static int update(UPDATE_FUNC_ARGS);
-static int graphics(GRAPHICS_FUNC_ARGS);
 
 void Element::Element_LOGC() {
 	Identifier = "DEFAULT_PT_LOGC";
 	Name = "LOGC";
-	Colour = PIXPACK(0xFFFFFF);
+	Colour = PIXPACK(0x8F79BA);
 	MenuVisible = 1;
 	MenuSection = SC_ELECTROMAG;
 	Enabled = 1;
@@ -31,7 +31,7 @@ void Element::Element_LOGC() {
 	Weight = 100;
 
 	HeatConduct = 251;
-	Description = "Multi-pixel Logic gate. Use PSCN / COPR for input, NSCN / ZINC for output. Tmp = type, pavg0 = output voltage.";
+	Description = "Multi-pixel logic gate. Use PSCN / COPR for input, NSCN / ZINC for output. Tmp = type, pavg0 = output voltage.";
 	DefaultProperties.pavg[0] = 5.0f;
 
 	Properties = TYPE_SOLID;
@@ -46,40 +46,17 @@ void Element::Element_LOGC() {
 	HighTemperatureTransition = PT_LAVA;
 
 	Update = &update;
-	Graphics = &graphics;
 }
 
 static int update(UPDATE_FUNC_ARGS) {
 	/**
 	 * Properties:
-	 * tmp - Type
-	 * 
-	 * tmp2 - Positive inputs in this frame
-	 * life - Negative inputs in this frame
+	 * tmp   - Type
+	 * tmp2  - Id
 	 * pavg0 - Output voltage
-	 * pavg1 - Effective output voltage
 	 */
 	CIRCUITS::add_circuit(x, y, sim);
-	
-	int output_id = -1, ox, oy;
-	for (int rx = -1; rx <= 1; rx++)
-	for (int ry = -1; ry <= 1; ry++)
-		if (BOUNDS_CHECK && (rx || ry)) {
-			int r = pmap[y + ry][x + rx];
-			if (!r) continue;
-
-			if (TYP(r) == PT_INWR) {
-
-			}
-			
-		}
-
+	if (parts[i].tmp < 0 || parts[i].tmp > XNOR)
+		parts[i].tmp = 0;
 	return 0;
-}
-
-static int graphics(GRAPHICS_FUNC_ARGS) {
-	// graphics code here
-	// return 1 if nothing dymanic happens here
-
-	return 1;
 }

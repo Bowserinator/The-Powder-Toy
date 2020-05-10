@@ -24,7 +24,9 @@ void Chip::compute_output(std::unordered_map<NodeId, Volts> &constrained_nodes) 
     output_value = output_high;
 
     switch(chip_type) {
+        // Logic
         case AND:
+        case NAND:
             output_value = output_high;
             for (auto &d : input_data) {
                 if (fabs(d.voltage) < MIN_CHIP_TRUE_VOLTAGE) {
@@ -32,6 +34,44 @@ void Chip::compute_output(std::unordered_map<NodeId, Volts> &constrained_nodes) 
                     break;
                 }
             }
+            if (chip_type == NAND)
+                output_value = output_high - output_value;
+            break;
+        case OR:
+        case NOR:
+            output_value = 0.0;
+            for (auto &d : input_data) {
+                if (fabs(d.voltage) >= MIN_CHIP_TRUE_VOLTAGE) {
+                    output_value = output_high;
+                    break;
+                }
+            }
+            if (chip_type == NOR)
+                output_value = output_high - output_value;
+            break;
+        case NOT:
+            output_value = input_data.size() ? (
+                fabs(input_data[0].voltage) >= MIN_CHIP_TRUE_VOLTAGE ? 0.0 : output_high) : 0.0;
+            break;
+        case XOR:
+        case XNOR: {
+                output_value = 0.0;
+                int true_count = 0;
+                for (auto &d : input_data) {
+                    if (fabs(d.voltage) >= MIN_CHIP_TRUE_VOLTAGE)
+                        true_count++;
+                    if (true_count > 1)
+                        break;
+                }
+                output_value = true_count == 1 ? output_high : 0.0;
+                if (chip_type == XNOR)
+                    output_value = output_high - output_value;
+            break;
+        }
+
+        // Op amps
+        case BUFFER:
+            output_value = input_data.size() ? input_data[0].voltage : 0.0;
             break;
     }
 

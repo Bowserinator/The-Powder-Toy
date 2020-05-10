@@ -15,7 +15,7 @@ bool can_be_skeleton(int i, Simulation * sim);
 bool can_be_node(int i, Simulation * sim);
 
 coord_vec floodfill(Simulation *sim, int x, int y);
-coord_vec coord_vec_to_skeleton(Simulation *sim, const coord_vec &floodfill);
+coord_vec coord_vec_to_skeleton(Simulation *sim, const coord_vec &floodfill, bool &has_chip);
 
 // Type classifications
 inline bool is_positive_terminal(int type)    { return get_flags(type) & POSITIVE_TERMINAL; }

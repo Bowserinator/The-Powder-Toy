@@ -54,7 +54,7 @@ void Circuit::process_skeleton(coord_vec &skeleton) {
         global_rspk_ids.push_back(id);
     }
 
-    skeleton = coord_vec_to_skeleton(sim, skeleton);
+    skeleton = coord_vec_to_skeleton(sim, skeleton, this->contains_chip);
     for (auto &pos : skeleton) {
         node_skeleton_map[YX(pos.y, pos.x)] = CircuitParams::SKELETON;
         sim->parts[ID(sim->photons[pos.y][pos.x])].tmp = CircuitParams::SKELETON;
@@ -634,7 +634,7 @@ void Circuit::solve(bool allow_recursion) {
         recalc_cooldown_timer--;
 
     size_t size = highest_node_id - CircuitParams::START_NODE_ID + 1;
-    if (!connection_map.size())
+    if (!branch_cache.size() && !floating_branches.size())
         return;
 
     // Don't need to solve: circuit is non-dynamic and we already solved it

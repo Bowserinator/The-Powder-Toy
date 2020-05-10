@@ -826,7 +826,15 @@ SPRK controlled resistor
 large circuits are slow :(
 
 
+chip - fix 1 frame lag
+
 touching GRND doesn't always create a node
+- when the wre is inside the ground
+- because GRND isn't considered part of the skeleton 
+
+
+terminals still dont always uopdare
+- appears to be a problem still :(
 
 
 chips:

@@ -35,6 +35,7 @@ private:
     bool computed_divergence = false;          // One time flag for creation
     bool recalc_next_frame = false;            // Flag for regeneration
     bool contains_dynamic = false;             // Contains dynamic components such as capacitors (update every frame)
+    bool contains_chip = false;                // Contains a chip (may need to update even when no connections are present)
     bool solution_computed = false;            // Already computed solution for non-dynamic systems
     
     NodeId highest_node_id = 0;

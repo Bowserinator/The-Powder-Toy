@@ -176,7 +176,7 @@ void coord_stack_to_skeleton_iteration(Simulation *sim, coord_vec &output,
  * Returns a new vector of coordinates that can be considered
  * the middle portion (a 1px wide skeleton)
  */
-coord_vec coord_vec_to_skeleton(Simulation *sim, const coord_vec &floodfill) {
+coord_vec coord_vec_to_skeleton(Simulation *sim, const coord_vec &floodfill, bool &has_chip) {
     coord_vec output(floodfill);
     size_t prev_size = 0;
     int output_map[YRES][XRES];
@@ -202,6 +202,7 @@ coord_vec coord_vec_to_skeleton(Simulation *sim, const coord_vec &floodfill) {
     for (int i = output.size() - 1; i >= 0; i--) {
         int typ = TYP(sim->pmap[output[i].y][output[i].x]);
         if (is_chip(typ)) {
+            has_chip = true;
             output_map[output[i].y][output[i].x] = CircuitParams::NOSKELETON;
             output.erase(output.begin() + i);
         }
