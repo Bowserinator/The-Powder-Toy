@@ -13,6 +13,7 @@
 #define IS_VOLTAGE_SOURCE    0x40
 #define REQUIRES_INTEGRATION 0x80
 #define DONT_HEAT_UP         0x100 // Doesn't heat up with current
+#define IGNORE_NON_SKELETON  0x200 // Values of RSPK not on skeleton are not calculated
 
 class CircuitData {
 public:
@@ -22,7 +23,8 @@ public:
 };
 
 const std::unordered_map<ElementType, CircuitData> circuit_data({
-    { PT_VOLT, CircuitData( REALLY_BIG_RESISTANCE, IS_VOLTAGE_SOURCE | DONT_HEAT_UP )}, // If wired improperly turns into big resistor
+    { PT_VOLT, CircuitData( REALLY_BIG_RESISTANCE,
+        IS_VOLTAGE_SOURCE | DONT_HEAT_UP | IGNORE_NON_SKELETON )}, // If wired improperly turns into big resistor
     { PT_GRND, CircuitData( SUPERCONDUCTING_RESISTANCE )},
     { PT_COPR, CircuitData( 1.72e-8, POSITIVE_TERMINAL )},
     { PT_PSCN, CircuitData( 30, POSITIVE_TERMINAL )},
@@ -51,7 +53,7 @@ const std::unordered_map<ElementType, CircuitData> circuit_data({
     // Is a wire at steady state
     { PT_INDC, CircuitData( 0, DYNAMIC_PARTICLE | REQUIRES_INTEGRATION )},
 
-    { PT_LOGC, CircuitData( REALLY_BIG_RESISTANCE, IS_CHIP )},
+    { PT_LOGC, CircuitData( REALLY_BIG_RESISTANCE, IS_CHIP | IGNORE_NON_SKELETON )},
 
     { PT_SICN, CircuitData( 30 )},
     { PT_METL, CircuitData( 1e-7 )}, // Metal is "steel"

@@ -22,11 +22,12 @@ inline bool is_positive_terminal(int type)    { return get_flags(type) & POSITIV
 inline bool is_negative_terminal(int type)    { return get_flags(type) & NEGATIVE_TERMINAL; }
 inline bool is_terminal(int type)             { return is_positive_terminal(type) || is_negative_terminal(type); }
 inline bool has_negative_resistance(int type) { return get_flags(type) & NEGATIVE_RESISTANCE; }
-inline bool is_dynamic_resistor(int type)     { return has_negative_resistance(type) || get_flags(type) & DYNAMIC_RESISTANCE; }
-inline bool is_dynamic_particle(int type)     { return get_flags(type) & DYNAMIC_PARTICLE; }
-inline bool is_chip(int type)                 { return get_flags(type) & IS_CHIP; } 
+inline bool is_chip(int type)                 { return get_flags(type) & IS_CHIP; }
 inline bool is_voltage_source(int type)       { return get_flags(type) & IS_VOLTAGE_SOURCE; }
 inline bool is_integration_particle(int type) { return get_flags(type) & REQUIRES_INTEGRATION; }
+inline bool is_dynamic_resistor(int type)     { return has_negative_resistance(type) || get_flags(type) & DYNAMIC_RESISTANCE; }
+inline bool is_dynamic_particle(int type)     { return get_flags(type) & DYNAMIC_PARTICLE || is_chip(type); }
 inline bool doesnt_heat_up(int type)          { return get_flags(type) & DONT_HEAT_UP; }
+inline bool ignores_non_skeleton(int type)    { return get_flags(type) & IGNORE_NON_SKELETON; }
 
 #endif

@@ -14,6 +14,8 @@ bool can_be_skeleton(int i, Simulation * sim) {
 
 bool can_be_node(int i, Simulation * sim) {
     int typ = sim->parts[i].type;
+    if (is_chip(typ)) // Chips can't contain nodes
+        return false;
     return sim->elements[typ].Properties & TYPE_SOLID || (typ == PT_CRBN && sim->parts[i].tmp2);
 }
 
@@ -43,6 +45,7 @@ coord_vec floodfill(Simulation *sim, int x, int y) {
     CoordStack coords, offsets;
     coord_vec output;
     int crx, cry; // Temp rx and ry from offsets for junctions
+    ChipId initial_chip_id = 1;
 
     bool visited[YRES][XRES];
     std::fill(&visited[0][0], &visited[YRES][0], 0);
@@ -59,8 +62,17 @@ coord_vec floodfill(Simulation *sim, int x, int y) {
             if (j < 0) break; // Unable to create new particles
         }
 
-        if (TYP(sim->pmap[y][x]) != PT_JUNC)
+        int r = sim->pmap[y][x];
+        if (TYP(r) != PT_JUNC)
             visited[y][x] = true;
+        if (is_chip(TYP(r)) && !sim->parts[ID(r)].flags) {
+            PropertyValue value;
+			value.Integer = initial_chip_id;
+			sim->flood_prop(x, y, offsetof(Particle, tmp2), value, StructProperty::Integer);
+            value.Integer = 1;
+            sim->flood_prop(x, y, offsetof(Particle, flags), value, StructProperty::Integer);
+            initial_chip_id++;
+        }
         output.push_back(Pos(x, y));
 
 		// Floodfill
@@ -68,7 +80,7 @@ coord_vec floodfill(Simulation *sim, int x, int y) {
 		for (int ry = -1; ry <= 1; ++ry)
 		if ((rx || ry)) {
 			// Floodfill if valid spot.
-			ElementType fromtype = TYP(sim->pmap[y][x]);
+			ElementType fromtype = TYP(r);
 			ElementType totype = TYP(sim->pmap[y + ry][x + rx]);
 
             if (totype == PT_JUNC && rx && ry)
@@ -155,7 +167,7 @@ void coord_stack_to_skeleton_iteration(Simulation *sim, coord_vec &output,
 
     // Delete all indices marked for deletion
     for (int i = delete_these_indices.size() - 1; i >= 0; i--) {
-        output_map[output[delete_these_indices[i]].y][output[delete_these_indices[i]].x] = 0;
+        output_map[output[delete_these_indices[i]].y][output[delete_these_indices[i]].x] = CircuitParams::NOSKELETON;
         output.erase(output.begin() + delete_these_indices[i]);
     }
 }
@@ -170,9 +182,9 @@ coord_vec coord_vec_to_skeleton(Simulation *sim, const coord_vec &floodfill) {
     int output_map[YRES][XRES];
     int diff;
 
-    std::fill(&output_map[0][0], &output_map[YRES][0], 0.0f);
+    std::fill(&output_map[0][0], &output_map[YRES][0], CircuitParams::NOSKELETON);
     for (Pos p : floodfill)
-        output_map[p.y][p.x] = 1;
+        output_map[p.y][p.x] = CircuitParams::SKELETON;
 
     // Repeatedly thin the image to 1 px until it can no longer be further thined
     do {
@@ -182,5 +194,18 @@ coord_vec coord_vec_to_skeleton(Simulation *sim, const coord_vec &floodfill) {
         diff = prev_size - output.size();
         prev_size = output.size();
     } while (diff);
+
+    // Remove chips from the output
+    // This step is done last because we want the skeleton to initially
+    // pass through the chip, then we remove the chip part, otherwise nodes
+    // might not fully connect to the chip
+    for (int i = output.size() - 1; i >= 0; i--) {
+        int typ = TYP(sim->pmap[output[i].y][output[i].x]);
+        if (is_chip(typ)) {
+            output_map[output[i].y][output[i].x] = CircuitParams::NOSKELETON;
+            output.erase(output.begin() + i);
+        }
+    }
+
     return output;
 }

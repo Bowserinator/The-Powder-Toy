@@ -20,24 +20,8 @@ const std::vector<std::pair<int, int> > ADJACENT_PRIORITY({
     std::make_pair(-1, 1)
 });
 
-namespace CircuitParams {
-    const NodeId NOSKELETON = 0;
-    const NodeId SKELETON = 1;
-    const NodeId START_NODE_ID = 2;
-
-    const int DIRECTLY_ADJACENT = 1;
-    const int DIAGONALLY_ADJACENT = 2;
-
-    const int NEGATIVE_POLARITY = -1;
-    const int POSITIVE_POLARITY = 1;
-    const int NEUTRAL_POLARITY = 0;
-
-    static_assert(SKELETON == START_NODE_ID - 1, "Skeleton ID must be 1 less than the start node ID");
-    static_assert(SKELETON > 0, "Skeleton ID must be greater than 0");
-    static_assert(!NOSKELETON, "No skeleton must be falsey type");
-};
-
 class Branch;
+class Chip;
 
 class Circuit {
     friend Branch;
@@ -73,6 +57,9 @@ private:
     std::vector<ParticleId> global_rspk_ids;
     std::unordered_map<NodeId, Volts> constrained_nodes; // Reference for nodes = 0 V
 
+    // Chip data
+    std::vector<Chip> chips;
+
     void process_skeleton(coord_vec &skeleton);
     void mark_nodes(const coord_vec &skeleton, coord_vec &nodes);
     void trim_nodes(const coord_vec &nodes);
@@ -93,6 +80,8 @@ public:
     bool should_recalc() { return recalc_next_frame; }
     void reset();
     void debug();
+
+    void update_chip_io(ParticleId chip_pid, ParticleId terminal_id, bool positive_terminal);
 
     size_t branch_cache_size() const { return branch_cache.size(); }
     const std::vector<int> &get_global_rspk_ids() const { return global_rspk_ids; }

@@ -8,7 +8,9 @@
 
 static int update(UPDATE_FUNC_ARGS);
 static int graphics(GRAPHICS_FUNC_ARGS);
-static void changeType(ELEMENT_CHANGETYPE_FUNC_ARGS);
+static void change_type(ELEMENT_CHANGETYPE_FUNC_ARGS);
+
+static void copy_values(UPDATE_FUNC_ARGS);
 
 #include <vector>
 #include <set>
@@ -76,10 +78,10 @@ void Element::Element_RSPK() {
 
 	Update = &update;
 	Graphics = &graphics;
-	ChangeType = &changeType;
+	ChangeType = &change_type;
 }
 
-static void changeType(ELEMENT_CHANGETYPE_FUNC_ARGS) {
+static void change_type(ELEMENT_CHANGETYPE_FUNC_ARGS) {
 	if (circuit_map[i])
 		circuit_map[i]->flag_recalc(true);
 	circuit_map[i] = nullptr;
@@ -111,11 +113,19 @@ static int update(UPDATE_FUNC_ARGS) {
 		if (BOUNDS_CHECK && (rx || ry)) {
 			int r = sim->photons[y + ry][x + rx];
 			int fromtype = TYP(pmap[y][x]);
-			int totype = TYP(pmap[y+ry][x+rx]);
+			int totype = TYP(pmap[y + ry][x + rx]);
 
-			if (TYP(r) != PT_RSPK && circuit_map[i] && valid_conductor(totype, sim, ID(pmap[y+ry][x+rx])) &&
+			if (TYP(r) != PT_RSPK && circuit_map[i] && valid_conductor(totype, sim, ID(pmap[y + ry][x + rx])) &&
 			   		allow_conduction(totype, fromtype)) {
 				circuit_map[i]->flag_recalc();
+			}
+
+			if (TYP(r) == PT_RSPK) {
+				if ((rx == 0 || ry == 0) && is_chip(totype) && is_terminal(fromtype)) {
+					circuit_map[i]->update_chip_io(
+						ID(pmap[y + ry][x + rx]),
+						ID(pmap[y][x]), is_positive_terminal(fromtype));
+				}
 			}
 		}
 
@@ -146,83 +156,8 @@ static int update(UPDATE_FUNC_ARGS) {
 	parts[i].ctype = TYP(pmap[y][x]);
 	parts[i].temp = parts[ID(pmap[y][x])].temp;
 
-	if (!parts[i].tmp && !parts[i].tmp2) {
-		int r2 = -1;
-		int new_tmp2 = 1;
-
-		// Check skeleton first
-		for (auto &rxy : ADJACENT_PRIORITY) {
-			int rx = rxy.first, ry = rxy.second;
-			int r = sim->photons[y + ry][x + rx];
-			if (TYP(r) == PT_RSPK && parts[ID(r)].tmp) {
-				r2 = r;
-				goto end;
-			}
-		}
-		// Next check already scanned nearby
-		for (auto &rxy : ADJACENT_PRIORITY) {
-			int rx = rxy.first, ry = rxy.second;
-			int r = sim->photons[y + ry][x + rx];
-			if (TYP(r) == PT_RSPK && parts[ID(r)].tmp2 == 1) {
-				r2 = r, new_tmp2 = 2;
-				goto end;
-			}
-		}
-		// Scan in a spoke circle pattern for skeleton
-		for (int delta = 1; delta < XRES; delta++) {
-			std::set<int> invalidated_directions;
-			for (int dx : itrx)
-			for (int dy : itry) {
-				// Current direction cannot be traversed
-				int direction_hash = dy * 10 + dx;
-				if (invalidated_directions.find(direction_hash) != invalidated_directions.end())
-					continue;
-				if (invalidated_directions.size() == itrx.size())
-					goto end; // All directions are invalid now
-
-				int delta2 = std::round(delta * ((dx != 0 && dy != 0) ? 0.7f : 1.0f));
-				if (x + delta2 * dx >= XRES || x + delta2 * dx < 0 ||
-					y + delta2 * dy >= YRES || y + delta2 * dy < 0)
-					continue;
-				
-				int r = sim->photons[y + delta2 * dy][x + delta2 * dx];
-				if (!r || TYP(r) != PT_RSPK) {
-					invalidated_directions.insert(direction_hash);
-					continue;
-				}
-
-				if (parts[ID(r)].tmp || parts[ID(r)].tmp2 == 1) {
-					r2 = r;
-					goto end;
-				}
-			}	
-		}
-
-		end:;
-		// Failed to find a skeleton, at this point we'll copy anything
-		if (r2 < 0) {
-			parts[i].tmp2 = 2; // So it doesn't keep trying and lag the game
-			for (auto &rxy : ADJACENT_PRIORITY) {
-				int rx = rxy.first, ry = rxy.second;
-				int r = sim->photons[y + ry][x + rx];
-				if (TYP(r) == PT_RSPK && (parts[ID(r)].pavg[0] || parts[ID(r)].pavg[1])) {
-					r2 = r;
-					goto end2;
-				}
-			}
-		}
-		end2:;
-
-		if (r2 > -1) {
-			int r = r2;
-			parts[i].pavg[0] = parts[ID(r)].pavg[0];
-			parts[i].pavg[1] = parts[ID(r)].pavg[1];
-			parts[i].tmp2 = new_tmp2;
-
-			if (!circuit_map[i] && circuit_map[ID(r)])
-				circuit_map[i] = circuit_map[ID(r)];
-		}
-	}
+	if (!ignores_non_skeleton(parts[i].ctype))
+		copy_values(sim, i, x, y, surround_space, nt, parts, pmap);
 
 	// Project electric field
 	// float efield = res == 0.0f ? 0.0f : isign(parts[i].pavg[0]) * parts[i].pavg[1] / res;
@@ -324,4 +259,87 @@ static int graphics(GRAPHICS_FUNC_ARGS) {
 		*colb = (*colb - o_b) * (*firea + 1) / 20.0f + o_b;
 	}
 	return 0;
+}
+
+/**
+ * Copy values from skeleton for non-skeleton RSPK
+ */
+static void copy_values(UPDATE_FUNC_ARGS) {
+	if (!parts[i].tmp && !parts[i].tmp2) {
+		int r2 = -1;
+		int new_tmp2 = 1;
+
+		// Check skeleton first
+		for (auto &rxy : ADJACENT_PRIORITY) {
+			int rx = rxy.first, ry = rxy.second;
+			int r = sim->photons[y + ry][x + rx];
+			if (TYP(r) == PT_RSPK && parts[ID(r)].tmp) {
+				r2 = r;
+				goto end;
+			}
+		}
+		// Next check already scanned nearby
+		for (auto &rxy : ADJACENT_PRIORITY) {
+			int rx = rxy.first, ry = rxy.second;
+			int r = sim->photons[y + ry][x + rx];
+			if (TYP(r) == PT_RSPK && parts[ID(r)].tmp2 == 1) {
+				r2 = r, new_tmp2 = 2;
+				goto end;
+			}
+		}
+		// Scan in a spoke circle pattern for skeleton
+		for (int delta = 1; delta < XRES; delta++) {
+			std::set<int> invalidated_directions;
+			for (int dx : itrx)
+			for (int dy : itry) {
+				// Current direction cannot be traversed
+				int direction_hash = dy * 10 + dx;
+				if (invalidated_directions.find(direction_hash) != invalidated_directions.end())
+					continue;
+				if (invalidated_directions.size() == itrx.size())
+					goto end; // All directions are invalid now
+
+				int delta2 = std::round(delta * ((dx != 0 && dy != 0) ? 0.7f : 1.0f));
+				if (x + delta2 * dx >= XRES || x + delta2 * dx < 0 ||
+					y + delta2 * dy >= YRES || y + delta2 * dy < 0)
+					continue;
+				
+				int r = sim->photons[y + delta2 * dy][x + delta2 * dx];
+				if (!r || TYP(r) != PT_RSPK) {
+					invalidated_directions.insert(direction_hash);
+					continue;
+				}
+
+				if (parts[ID(r)].tmp || parts[ID(r)].tmp2 == 1) {
+					r2 = r;
+					goto end;
+				}
+			}	
+		}
+
+		end:;
+		// Failed to find a skeleton, at this point we'll copy anything
+		if (r2 < 0) {
+			parts[i].tmp2 = 2; // So it doesn't keep trying and lag the game
+			for (auto &rxy : ADJACENT_PRIORITY) {
+				int rx = rxy.first, ry = rxy.second;
+				int r = sim->photons[y + ry][x + rx];
+				if (TYP(r) == PT_RSPK && (parts[ID(r)].pavg[0] || parts[ID(r)].pavg[1])) {
+					r2 = r;
+					goto end2;
+				}
+			}
+		}
+		end2:;
+
+		if (r2 > -1) {
+			int r = r2;
+			parts[i].pavg[0] = parts[ID(r)].pavg[0];
+			parts[i].pavg[1] = parts[ID(r)].pavg[1];
+			parts[i].tmp2 = new_tmp2;
+
+			if (!circuit_map[i] && circuit_map[ID(r)])
+				circuit_map[i] = circuit_map[ID(r)];
+		}
+	}
 }

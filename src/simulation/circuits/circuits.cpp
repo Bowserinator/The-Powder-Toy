@@ -12,7 +12,6 @@ void CIRCUITS::add_circuit(int x, int y, Simulation * sim) {
     int r = sim->photons[y][x];
     if (circuit_map[ID(r)])
         return; // Already part of a circuit
-
     Circuit * c = new Circuit(x, y, sim);
     all_circuits.push_back(c);
 }

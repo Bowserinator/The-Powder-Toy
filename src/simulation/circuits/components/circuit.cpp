@@ -1,5 +1,6 @@
 #include "simulation/circuits/components/circuit.h"
 #include "simulation/circuits/components/branch.h"
+#include "simulation/circuits/components/chip.h"
 
 #include "simulation/ElementCommon.h"
 #include "simulation/circuits/circuit_core.h"
@@ -86,7 +87,7 @@ void Circuit::mark_nodes(const coord_vec &skeleton, coord_vec &nodes) {
 
         if (type == PT_GRND) {
             for (auto &rxy : ADJACENT_PRIORITY) {
-			    int rx = rxy.first, ry = rxy.second;
+                int rx = rxy.first, ry = rxy.second;
                 if (node_skeleton_map[YX(y + ry, x + rx)] && TYP(sim->pmap[y + ry][x + rx]) != type) {
                     add_immutable_node(node_id, pos, false);
                     nodes.push_back(pos);
@@ -104,7 +105,7 @@ void Circuit::mark_nodes(const coord_vec &skeleton, coord_vec &nodes) {
 
         else if (type == PT_INDC) {
             for (auto &rxy : ADJACENT_PRIORITY) {
-			    int rx = rxy.first, ry = rxy.second;
+                int rx = rxy.first, ry = rxy.second;
                 if (node_skeleton_map[YX(y + ry, x + rx)] && TYP(sim->pmap[y + ry][x + rx]) != type) {
                     Pos npos(x + rx, y + ry);
                     add_immutable_node(node_id, npos, rx && ry);
@@ -125,7 +126,7 @@ void Circuit::mark_nodes(const coord_vec &skeleton, coord_vec &nodes) {
             int other_silicon_type = type == PT_PSCN ? PT_NSCN : PT_PSCN;
 
             for (auto &rxy : ADJACENT_PRIORITY) {
-			    int rx = rxy.first, ry = rxy.second;
+                int rx = rxy.first, ry = rxy.second;
                 int t = TYP(sim->pmap[y + ry][x + rx]);
                 if (is_voltage_source(t) || is_chip(t) || (t_is_silicon && t == other_silicon_type)) {
                     add_immutable_node(node_id, pos, rx && ry);
@@ -576,7 +577,7 @@ void Circuit::add_branches(const coord_vec &skeleton) {
 
             bool adjacent_node = false;
             for (auto &rxy : ADJACENT_PRIORITY) {
-			    int rx = rxy.first, ry = rxy.second;
+                int rx = rxy.first, ry = rxy.second;
                 // Since directly adjacent takes priority this check will run before the next
                 // else if statement
                 if ((rx == 0 || ry == 0) && node_skeleton_map[YX(y + ry, x + rx)] > CircuitParams::SKELETON)
@@ -652,6 +653,12 @@ void Circuit::solve(bool allow_recursion) {
         if (copy) delete copy;
         copy = new Circuit(*this);
         copy->requires_divergence_checking = false;
+    }
+
+    // Chip pre-solving to set constrained nodes, do this once
+    if (allow_recursion) {
+        for (auto &c : chips)
+            c.compute_output(constrained_nodes);
     }
 
     // Set true for now, if no change set to false later
@@ -847,11 +854,18 @@ void Circuit::solve(bool allow_recursion) {
                 if (node1_of_adjacent == b->node1) // Keep alignment of currents correct
                     b->current *= -1;
             }
+        }
+
+        for (const auto &float_branch_key : floating_branches) {
+            NodeId node2 = float_branch_key.first;
 
             // Floating branches take voltage of connecting branches
-            for (size_t i = 0; i < floating_branches[node_id->first].size(); i++)
-                floating_branches[node_id->first][i]->V2 =
-                    x[floating_branches[node_id->first][i]->node2 - CircuitParams::START_NODE_ID];
+            // Or if the only node is constrained, take that
+            for (size_t i = 0; i < floating_branches[node2].size(); i++) {
+                floating_branches[node2][i]->V2 = constrained_nodes.count(node2) ?
+                    constrained_nodes[node2] :
+                    x[node2 - CircuitParams::START_NODE_ID];
+            }
         }
     }
 
@@ -868,12 +882,14 @@ void Circuit::solve(bool allow_recursion) {
     }
     computed_divergence = true;
     solution_computed = true;
+    for (auto &c : chips)
+        c.clear();
 }
 
 void Circuit::update_sim() {
     // Skip updating simulation for mostly static components
     if (!contains_dynamic && solution_computed && !new_solution_exists && sim->timer % FORCE_RECALC_EVERY_N_FRAMES != 0)
-        return;
+        goto end_update;
 
     for (auto node_id = connection_map.begin(); node_id != connection_map.end(); node_id++) {
         // Normal branches
@@ -952,22 +968,59 @@ void Circuit::update_sim() {
                 prev_type = TYP(r);
             }
         }
-        // Floating branches
-        for (size_t i = 0; i < floating_branches[node_id->first].size(); i++) {
-            for (size_t j = 0; j < floating_branches[node_id->first][i]->rspk_ids.size(); j++) {
-                int id = floating_branches[node_id->first][i]->rspk_ids[j];
-                sim->parts[id].pavg[0] = restrict_double_to_flt(floating_branches[node_id->first][i]->V2);
+    }
+
+    // Floating branches
+    for (const auto &float_branch_key : floating_branches) {
+        NodeId node2 = float_branch_key.first;
+        for (size_t i = 0; i < floating_branches[node2].size(); i++) {
+            for (size_t j = 0; j < floating_branches[node2][i]->rspk_ids.size(); j++) {
+                int id = floating_branches[node2][i]->rspk_ids[j];
+                sim->parts[id].pavg[0] = restrict_double_to_flt(floating_branches[node2][i]->V2);
+                sim->parts[id].pavg[1] = restrict_double_to_flt(0.0f);
+            }
+
+            // Assign voltage at node if there's no other branch connected to the node
+            // (ie, in the case with a chip)
+            if (!connection_map.count(node2)) {
+                int id = floating_branches[node2][i]->node2_id;
+                sim->parts[id].pavg[0] = restrict_double_to_flt(floating_branches[node2][i]->V2);
                 sim->parts[id].pavg[1] = restrict_double_to_flt(0.0f);
             }
         }
     }
+
+    end_update:;
+
     // Make RSPK not die, and set flag tmp2 = 0 to trigger recalc for non-skeleton nodes
     for (auto id : global_rspk_ids) {
         sim->parts[id].life = BASE_RSPK_LIFE;
         sim->parts[id].tmp2 = 0;
+
+        // Reset chip flags to 0
+        int x = (int)(sim->parts[id].x + 0.5f);
+        int y = (int)(sim->parts[id].y + 0.5f);
+        if (is_chip(TYP(sim->pmap[y][x])))
+            sim->parts[ID(sim->pmap[y][x])].flags = 0;
     }
 }
 
+
+void Circuit::update_chip_io(ParticleId chip_pid, ParticleId terminal_id, bool positive_terminal) {
+    ChipId chip_id = sim->parts[chip_pid].tmp2;
+    if (chip_id > chips.size())
+        chips.resize(chip_id);
+
+    int x = (int)(sim->parts[terminal_id].x + 0.5f);
+    int y = (int)(sim->parts[terminal_id].y + 0.5f);
+    int r = ID(sim->photons[y][x]);
+
+    if (positive_terminal)
+        chips[chip_id - 1].add_input(terminal_id, sim->parts[r].pavg[0], sim->parts[r].pavg[1], sim->parts[terminal_id].type);
+    else
+        chips[chip_id - 1].add_output(terminal_id, sim->parts[r].tmp);
+    chips[chip_id - 1].assign_values(sim->parts[chip_pid].tmp, sim->parts[chip_pid].pavg[0]);
+}
 
 
 void Circuit::reset_effective_resistances() {
@@ -1019,6 +1072,7 @@ void Circuit::reset() {
     floating_branches.clear();
     connection_map.clear();
     branch_cache.clear();
+    chips.clear();
 
     recalc_next_frame = false;
     new_solution_exists = true;
@@ -1057,6 +1111,7 @@ Circuit::Circuit(const Circuit &other) {
     requires_divergence_checking = other.requires_divergence_checking;
     highest_node_id = other.highest_node_id;
     circuit_size = other.circuit_size;
+    chips = other.chips;
 
     for (auto node_id = connection_map.begin(); node_id != connection_map.end(); node_id++) {
         for (size_t i = 0; i < node_id->second.size(); i++) {

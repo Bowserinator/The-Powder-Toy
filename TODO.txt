@@ -700,6 +700,17 @@ broken state/ liquid state / gas state / solid state update for everything :D
 
 saving portals and wifi requires iterating everything - check if there IS wifi or portal before copying
 
+==23338== 32 bytes in 1 blocks are definitely lost in loss record 1,189 of 4,539
+==23338==    at 0x4C2E47A: operator new(unsigned long) (vg_replace_malloc.c:344)
+==23338==    by 0x7B0DED: VehicleBuilder::Build() (vehicle.cpp:7)
+==23338==    by 0x79002D: __static_initialization_and_destruction_0(int, int) (cybertruck.cpp:12)
+==23338==    by 0x7958F2: _GLOBAL__sub_I_Cybertruck (cybertruck.cpp:488)
+==23338==    by 0x7ED89C: __libc_csu_init (in /mnt/c/Users/Bowserinator/Downloads/TPT-Ultimata-Mod/build/powder64)
+==23338==    by 0x6BA67BE: (below main) (libc-start.c:247)
+
+try using texture for gases see if improvemenet
+
+
 BWBellairs element
 - ACU
     - upgrading gun
@@ -724,26 +735,6 @@ test IWALL with RSPK
 INWR different tmp conductivity?
 
 thermoresistor unmeltable too
-
-DONE:
-ADJACENT_PRIORITY_X loops are incorrect:
-- replace with single vector pair
-- big brain idea:
-    - iteratively check spokes like
-     \|/
-     ---
-     /|\
-first spoke to intersect wins
-    iterate like every other grid so you can use one right beside you
-- need to clear current voltage and current during floodfill
-    - do everytime sim_update is called?
--- it's possible spoke will never intersect
-if reach nothing then do nothing??
-^ special case check needed: if closer to another branch, make it not allow to traverse across gaps
-
-make group filling a bit better maybe?
-
-
 
 
 TRFR : transformer
@@ -781,7 +772,6 @@ VOLT problems:
 
 
 valgrind ./build/powder64 --leak-check=full > valgrind.log 2>&1
-
 
 
 
@@ -829,6 +819,22 @@ else 0.7 V drop
 NPN: do opposite
 
 - magnetic field induces inductor current
+
+SPRK controlled resistor
+- SWCH, but actually a switch hmm
+
+large circuits are slow :(
+
+
+touching GRND doesn't always create a node
+
+
+chips:
+- flags = 1 - reset to 0 frame after
+- tmp2 = id - TODO change to tmp2 or something
+
+
+- add other chip types :D 
 
 realistic batteries 
 
