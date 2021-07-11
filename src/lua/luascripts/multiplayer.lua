@@ -2,11 +2,10 @@
 --I highly recommend to use my Autorun Script Manager
 
 local version = 8
-local versionstring = "1.0.2"
+local versionstring = "1.0.3"
 
 if TPTMP then if TPTMP.version <= version then TPTMP.disableMultiplayer() else error("newer version already running") end end local get_name = tpt.get_name -- if script already running, replace it
 TPTMP = {["version"] = version, ["versionStr"] = versionstring} -- script version sent on connect to ensure server protocol is the same
-local issocket,socket = pcall(require,"socket")
 if not http then error"Tpt version not supported" end
 local using_manager = false
 local type = type -- people like to overwrite this function with a global a lot
@@ -399,7 +398,7 @@ new=function(x,y,w,h)
 	end)
 	intext:moveadd(function(self,x,y) self.t:onmove(x,y) end)
 	function intext:setfocus(focus)
-		if ui.grabTextInput then
+		if ui and ui.grabTextInput then
 			if focus and not self.focus then
 				ui.grabTextInput()
 			elseif not focus and self.focus then
@@ -770,7 +769,6 @@ new=function(x,y,w,h)
 	--commands for chat window
 	chatcommands = {
 	connect = function(self,msg,args)
-		if not issocket then self:addline("No luasockets found") return end
 		local newname = pcall(string.dump, get_name) and "Gue".."st#"..math["random"](1111,9888) or get_name()
 		local s,r = connectToServer(args[1],tonumber(args[2]), newname~="" and newname or username)
 		if not s then self:addline(r,255,50,50) end
@@ -897,9 +895,9 @@ local infoText = newFadeText("",150,245,370,255,255,255,true)
 local cmodeText = newFadeText("",120,250,180,255,255,255,true)
 
 local function getypos()
-	local ypos = 136 + 36
+	local ypos = 136
 	if jacobsmod and tpt.oldmenu and tpt.oldmenu()==1 then
-		ypos = 392 + 36
+		ypos = 392
 	elseif tpt.num_menus then
 		ypos = 392-16*tpt.num_menus()-(not jacobsmod and 16 or 0) + 36
 	end
@@ -1986,9 +1984,6 @@ local scanFuncs = {
 	--F, frame step
 	[9] = function() if not jacobsmod or not L.ctrl then conSend(50) end end,
 
-	--H, HUD and intro text
-	[11] = function() if L.ctrl and jacobsmod then return false end end,
-
 	--I, invert pressure
 	[12] = function() conSend(62) end,
 
@@ -2058,9 +2053,6 @@ local scanFuncs = {
 
 	--;, replace mode or specific delete
 	[59] = function() if L.ctrl then  L.replacemode = bit.bxor(L.replacemode, 2) else  L.replacemode = bit.bxor(L.replacemode, 1) end conSend(38, L.replacemode) end,
-
-	--F1 , intro text
-	[58] = function() if jacobsmod then return false end end,
 
 	--F5 , save reload
 	[62] = function()

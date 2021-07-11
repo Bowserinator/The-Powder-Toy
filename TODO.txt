@@ -1,7 +1,7 @@
 
 
 v96 update:
-- TPTMP
+- TPTMP done
 - fix all those bugs
     - INST: done
     - texter crash: done 
